@@ -16,72 +16,62 @@ def pregunta_01():
     import os
     import pandas as pd
 
-    input_file = "files/input/solicitudes_de_credito.csv"
-    output_file = "files/output/solicitudes_de_credito.csv"
+    input_path = "files/input/solicitudes_de_credito.csv"
+    output_path = "files/output/solicitudes_de_credito.csv"
 
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    df = pd.read_csv(input_path, sep=";", index_col=0)
 
-    df = pd.read_csv(input_file, sep=";", index_col=0)
+    # sexo
+    df["sexo"] = df["sexo"].str.lower().str.strip()
 
-    df.dropna(inplace=True)
+    # tipo_de_emprendimiento
+    df["tipo_de_emprendimiento"] = df["tipo_de_emprendimiento"].str.lower().str.strip()
 
-    columnas_texto = [
-        "sexo",
-        "tipo_de_emprendimiento",
-        "idea_negocio",
-        "barrio",
-        "línea_credito",
-    ]
+    # idea_negocio
+    idea = df["idea_negocio"].str.lower()
+    idea = idea.str.replace("_", " ")
+    idea = idea.str.replace("-", " ")
+    idea = idea.str.strip()
+    df["idea_negocio"] = idea
 
-    accent_map = {
-        "á": "a",
-        "é": "e",
-        "í": "i",
-        "ó": "o",
-        "ú": "u",
-        "ü": "u",
-        "ñ": "n",
-    }
+    # barrio (nota: igual que tu versión, sin strip final)
+    barrio = df["barrio"].str.lower()
+    barrio = barrio.str.replace("_", " ")
+    barrio = barrio.str.replace("-", " ")
+    df["barrio"] = barrio
 
-    for col in columnas_texto:
-        if col in df.columns:
-            df[col] = df[col].astype(str).str.lower()
+    # estrato y comuna_ciudadano
+    df["estrato"] = [int(x) for x in df["estrato"]]
+    df["comuna_ciudadano"] = [int(x) for x in df["comuna_ciudadano"]]
 
-            for acc, non_acc in accent_map.items():
-                df[col] = df[col].str.replace(acc, non_acc, regex=False)
+    # fecha_de_beneficio (dos formatos posibles)
+    fecha_raw = df["fecha_de_beneficio"]
+    fecha1 = pd.to_datetime(fecha_raw, format="%d/%m/%Y", errors="coerce")
+    fecha2 = pd.to_datetime(fecha_raw, format="%Y/%m/%d", errors="coerce")
+    df["fecha_de_beneficio"] = fecha1.combine_first(fecha2)
 
-            df[col] = df[col].str.replace("_", " ", regex=False)
-            df[col] = df[col].str.replace("-", " ", regex=False)
-            df[col] = df[col].str.replace(".", "", regex=False)
+    # monto_del_credito
+    monto = df["monto_del_credito"].astype(str)
+    monto = monto.str.replace("$", "")
+    monto = monto.str.replace(",", "")
+    monto = monto.str.replace(".00", "")
+    monto = monto.str.strip()
+    df["monto_del_credito"] = monto
 
-            df[col] = df[col].str.replace(r"\s+", " ", regex=True)
-            df[col] = df[col].str.strip()
+    # línea_credito
+    linea = df["línea_credito"].str.lower().str.strip()
+    linea = linea.str.replace("_", " ")
+    linea = linea.str.replace("-", " ")
+    linea = linea.str.strip()
+    df["línea_credito"] = linea
 
-    if "monto_del_credito" in df.columns:
-        df["monto_del_credito"] = (
-            df["monto_del_credito"]
-            .astype(str)
-            .str.replace("$", "", regex=False)
-            .str.replace(",", "", regex=False)
-            .str.replace(" ", "", regex=False)
-            .astype(float)
-        )
+    # duplicados y nulos
+    df = df.drop_duplicates()
+    df = df.dropna()
 
-    if "comuna_ciudadano" in df.columns:
-        df["comuna_ciudadano"] = pd.to_numeric(
-            df["comuna_ciudadano"], errors="coerce"
-        )
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, sep=";", index=False)
 
-    if "estrato" in df.columns:
-        df["estrato"] = df["estrato"].astype(str).astype(int)
 
-    if "fecha_de_beneficio" in df.columns:
-        df["fecha_de_beneficio"] = pd.to_datetime(
-            df["fecha_de_beneficio"],
-            dayfirst=True,
-            errors="coerce",
-        )
-
-    df.drop_duplicates(inplace=True)
-
-    df.to_csv(output_file, sep=";", index=False)
+if __name__ == "__main__":
+    pregunta_01()
